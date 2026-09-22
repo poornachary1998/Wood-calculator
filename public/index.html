@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wood Cut-List Extractor</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>Wood Cut-List Extractor</h1>
+    <p class="subtitle">
+      Upload a photo of a handwritten cut-list, or build one manually below.
+    </p>
+
+    <section class="panel">
+      <div class="upload-row">
+        <div id="drop-zone">
+          <p>Drag & drop a photo here, or click to choose a file</p>
+          <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic" class="hidden" />
+        </div>
+        <img id="preview" alt="Selected photo preview" />
+      </div>
+      <div style="margin-top: 1rem; display: flex; gap: 0.75rem; align-items: center;">
+        <button id="extract-btn" class="primary" disabled>Extract</button>
+        <span id="status-message"></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="toolbar">
+        <button id="add-section-btn" class="small">+ Add Section</button>
+      </div>
+      <div id="sections-container"></div>
+      <div class="grand-total">Grand total: <span id="grand-total">0.00</span> sq ft</div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

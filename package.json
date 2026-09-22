@@ -1,0 +1,20 @@
+{
+  "name": "wood-cutlist-extractor",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Upload a photo of a handwritten wood cut-list, extract measurements with the Gemini API, and calculate area totals.",
+  "main": "server.js",
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.2",
+    "express": "^5.2.1",
+    "multer": "^2.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
