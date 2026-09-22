@@ -12,4 +12,3 @@ npm run dev
 ```
 
 `npm start` runs the server without auto-reload.
-# Wood-calculator
