@@ -8,13 +8,13 @@ const {
   ACCEPTED_MIME_TYPES,
   hasAnyRows,
   extractFromImage,
-} = require("./lib/gemini");
+} = require("./lib/extraction");
 
 const PORT = process.env.PORT || 3000;
 
-if (!process.env.GEMINI_API_KEY) {
+if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
   console.error(
-    "GEMINI_API_KEY is not set. Copy .env.example to .env and add your key."
+    "No extraction provider is configured. Copy .env.example to .env and set at least one of GEMINI_API_KEY or ANTHROPIC_API_KEY."
   );
   process.exit(1);
 }
@@ -53,29 +53,28 @@ app.post("/api/extract", upload.single("image"), async (req, res) => {
   try {
     result = await extractFromImage(base64Data, mediaType);
   } catch (err) {
-    if (err.isRateLimit) {
+    console.error("Extraction chain failed:", err);
+    if (err.code === "no_provider_configured") {
       return sendError(
         res,
-        429,
-        "rate_limited",
-        "The service is busy right now. Please try again in a moment."
+        500,
+        "server_misconfigured",
+        "The server is missing extraction API credentials."
       );
     }
-    console.error("Gemini API error:", err);
+    if (err.code === "invalid_json") {
+      return sendError(
+        res,
+        422,
+        "invalid_json",
+        "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
+      );
+    }
     return sendError(
       res,
       502,
       "upstream_error",
       "Something went wrong talking to the extraction service."
-    );
-  }
-
-  if (result === null) {
-    return sendError(
-      res,
-      422,
-      "invalid_json",
-      "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
     );
   }
 

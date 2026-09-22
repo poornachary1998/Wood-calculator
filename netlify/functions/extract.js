@@ -1,5 +1,5 @@
 const Busboy = require("busboy");
-const { ACCEPTED_MIME_TYPES, hasAnyRows, extractFromImage } = require("../../lib/gemini");
+const { ACCEPTED_MIME_TYPES, hasAnyRows, extractFromImage } = require("../../lib/extraction");
 
 // Netlify Functions run behind API Gateway, which caps request bodies at 6MB.
 // A base64-encoded upload is ~33% larger than the original file, so cap the
@@ -61,8 +61,8 @@ exports.handler = async (event) => {
     return errorResponse(405, "method_not_allowed", "Only POST is supported.");
   }
 
-  if (!process.env.GEMINI_API_KEY) {
-    console.error("GEMINI_API_KEY is not set.");
+  if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+    console.error("No extraction provider is configured.");
     return errorResponse(
       500,
       "server_misconfigured",
@@ -107,26 +107,25 @@ exports.handler = async (event) => {
   try {
     result = await extractFromImage(base64Data, mimetype);
   } catch (err) {
-    if (err.isRateLimit) {
+    console.error("Extraction chain failed:", err);
+    if (err.code === "no_provider_configured") {
       return errorResponse(
-        429,
-        "rate_limited",
-        "The service is busy right now. Please try again in a moment."
+        500,
+        "server_misconfigured",
+        "The server is missing extraction API credentials."
       );
     }
-    console.error("Gemini API error:", err);
+    if (err.code === "invalid_json") {
+      return errorResponse(
+        422,
+        "invalid_json",
+        "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
+      );
+    }
     return errorResponse(
       502,
       "upstream_error",
       "Something went wrong talking to the extraction service."
-    );
-  }
-
-  if (result === null) {
-    return errorResponse(
-      422,
-      "invalid_json",
-      "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
     );
   }
 
