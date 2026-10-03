@@ -27,6 +27,7 @@
   const sectionsContainer = document.getElementById("sections-container");
   const addSectionBtn = document.getElementById("add-section-btn");
   const grandTotalEl = document.getElementById("grand-total");
+  const downloadDocBtn = document.getElementById("download-doc-btn");
 
   // --- Upload handling -----------------------------------------------
 
@@ -306,6 +307,70 @@
 
     grandTotalEl.textContent = fmt(grandTotal());
   }
+
+  // --- Word export ---------------------------------------------------------
+
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[c]);
+  }
+
+  // Word opens HTML saved with a .doc extension and the msword MIME type, so
+  // the cut-list can be exported without a document-generation library.
+  function buildDocHtml() {
+    const cell = "border:1px solid #999;padding:4px 8px;";
+    const sectionsHtml = state.sections.map((section) => {
+      const rowsHtml = section.rows.map((row) => `
+        <tr>
+          <td style="${cell}">${escapeHtml(row.qty)}</td>
+          <td style="${cell}">${escapeHtml(row.valuesText)}</td>
+          <td style="${cell}text-align:right">${fmt(rowTotal(row))}</td>
+        </tr>`).join("");
+      return `
+        <h2>${escapeHtml(section.name)}</h2>
+        <table style="border-collapse:collapse;width:100%">
+          <tr>
+            <th style="${cell}text-align:left">Qty</th>
+            <th style="${cell}text-align:left">Dimensions</th>
+            <th style="${cell}text-align:right">Total (sq ft)</th>
+          </tr>
+          ${rowsHtml}
+          <tr>
+            <td style="${cell}" colspan="2"><b>Section total</b></td>
+            <td style="${cell}text-align:right"><b>${fmt(sectionTotal(section))}</b></td>
+          </tr>
+        </table>`;
+    }).join("");
+
+    return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+      <head><meta charset="utf-8"><title>Wood Cut-List</title></head>
+      <body style="font-family:Calibri,Arial,sans-serif">
+        <h1>Wood Cut-List</h1>
+        <p>Generated ${escapeHtml(new Date().toLocaleString())}</p>
+        ${sectionsHtml}
+        <h2>Grand total: ${fmt(grandTotal())} sq ft</h2>
+      </body></html>`;
+  }
+
+  downloadDocBtn.addEventListener("click", () => {
+    if (state.sections.length === 0) {
+      showError("Nothing to download yet. Add a section or extract a photo first.");
+      return;
+    }
+    clearStatus();
+    const blob = new Blob(["\ufeff", buildDocHtml()], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `wood-cut-list-${new Date().toISOString().slice(0, 10)}.doc`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  });
 
   render();
 })();
