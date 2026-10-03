@@ -160,19 +160,25 @@
     const numbers = parseNumbers(row.valuesText);
     if (numbers.length === 0) return 0;
     const product = numbers.reduce((acc, n) => acc * n, 1);
-    return (Number(row.qty) || 0) * product / 144;
+    return round3((Number(row.qty) || 0) * product / 144);
   }
 
   function sectionTotal(section) {
-    return section.rows.reduce((sum, row) => sum + rowTotal(row), 0);
+    return round3(section.rows.reduce((sum, row) => sum + rowTotal(row), 0));
   }
 
   function grandTotal() {
-    return state.sections.reduce((sum, section) => sum + sectionTotal(section), 0);
+    return round3(state.sections.reduce((sum, section) => sum + sectionTotal(section), 0));
+  }
+
+  // Rounds to 3 decimal places so every row, section and grand total adds up
+  // exactly to the values shown on screen (e.g. 7.809).
+  function round3(n) {
+    return Math.round((n + Number.EPSILON) * 1000) / 1000;
   }
 
   function fmt(n) {
-    return n.toFixed(2);
+    return n.toFixed(3);
   }
 
   // --- Rendering -----------------------------------------------------------
