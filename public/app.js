@@ -310,12 +310,6 @@
 
   // --- Word export ---------------------------------------------------------
 
-  function escapeHtml(text) {
-    return String(text).replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-    })[c]);
-  }
-
   // Business details printed on the shop's bill book, shown in Telugu and
   // English at the top of every exported document.
   const BUSINESS = {
@@ -330,110 +324,203 @@
     phone: "9849523572",
   };
 
-  const GREEN = "#1a7f3c";
-  const RED = "#c8321e";
+  const GREEN = "1A7F3C";
+  const RED = "C8321E";
+  const LIGHT_GREEN = "EEF7F0";
+  // Nirmala UI ships with Windows and Office and covers both Telugu and Latin.
+  const FONT = { ascii: "Nirmala UI", hAnsi: "Nirmala UI", cs: "Nirmala UI", eastAsia: "Nirmala UI" };
 
-  // Word opens HTML saved with a .doc extension and the msword MIME type, so
-  // the cut-list can be exported without a document-generation library.
-  function buildDocHtml() {
-    const border = `border:1px solid ${GREEN};`;
-    const th = `${border}padding:5px 6px;color:${GREEN};font-weight:bold;text-align:center;`;
-    const td = `${border}padding:5px 6px;`;
+  // Builds a real .docx (Office Open XML) with the docx library loaded from
+  // vendor/, so it opens in Word on desktop and phone, Google Docs and WPS.
+  function buildDocx() {
+    const {
+      Document, Paragraph, TextRun, Table, TableRow, TableCell, WidthType,
+      AlignmentType, BorderStyle, ShadingType, VerticalAlign,
+    } = window.docx;
+
+    // sizePt is in points; docx expects half-points. Complex-script variants
+    // are set too so Telugu text gets the same size and weight as English.
+    function run(text, { color = "000000", sizePt = 11, bold = false, italics = false } = {}) {
+      return new TextRun({
+        text: String(text),
+        font: FONT,
+        color,
+        size: sizePt * 2,
+        sizeComplexScript: sizePt * 2,
+        bold,
+        boldComplexScript: bold,
+        italics,
+        italicsComplexScript: italics,
+      });
+    }
+
+    function para(runs, { align = AlignmentType.LEFT, after = 40, before = 0 } = {}) {
+      return new Paragraph({ children: runs, alignment: align, spacing: { before, after } });
+    }
+
+    const greenLine = { style: BorderStyle.SINGLE, size: 6, color: GREEN };
+    const cellBorders = { top: greenLine, bottom: greenLine, left: greenLine, right: greenLine };
+
+    function cell(children, { widthPct, span, shade, align = AlignmentType.LEFT } = {}) {
+      return new TableCell({
+        children: [para(children, { align, after: 0 })],
+        columnSpan: span,
+        width: widthPct ? { size: widthPct, type: WidthType.PERCENTAGE } : undefined,
+        shading: shade ? { type: ShadingType.CLEAR, color: "auto", fill: shade } : undefined,
+        borders: cellBorders,
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 60, bottom: 60, left: 100, right: 100 },
+      });
+    }
+
+    const center = AlignmentType.CENTER;
+    const right = AlignmentType.RIGHT;
+    const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+    const noBorders = {
+      top: noBorder, bottom: noBorder, left: noBorder, right: noBorder,
+      insideHorizontal: noBorder, insideVertical: noBorder,
+    };
+    const fullWidth = { size: 100, type: WidthType.PERCENTAGE };
+
+    // Branded header box, mirroring the printed bill book.
+    const thickGreen = { style: BorderStyle.DOUBLE, size: 6, color: GREEN };
+    const header = new Table({
+      width: fullWidth,
+      rows: [new TableRow({
+        children: [new TableCell({
+          borders: { top: thickGreen, bottom: thickGreen, left: thickGreen, right: thickGreen },
+          margins: { top: 120, bottom: 120, left: 160, right: 160 },
+          children: [
+            para([run(`సెల్ / Cell: ${BUSINESS.phone}`, { color: GREEN, bold: true })], { align: right }),
+            para([run(BUSINESS.nameTe, { color: RED, sizePt: 16, bold: true })], { align: center }),
+            para([run(BUSINESS.nameEn, { color: RED, sizePt: 13, bold: true })], { align: center, after: 80 }),
+            para([run(`${BUSINESS.taglineTe}  |  ${BUSINESS.taglineEn}`, { color: GREEN, bold: true })], { align: center }),
+            para([run(BUSINESS.addressTe, { color: GREEN })], { align: center }),
+            para([run(BUSINESS.addressEn, { color: GREEN })], { align: center }),
+            para([run(`${BUSINESS.proprietorTe}  |  ${BUSINESS.proprietorEn}`, { color: RED, bold: true })], { align: center }),
+          ],
+        })],
+      })],
+    });
+
+    const label = (text) => run(text, { color: GREEN, bold: true });
     const today = new Date().toLocaleDateString("en-IN");
+    const billFields = new Table({
+      width: fullWidth,
+      borders: noBorders,
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({ borders: noBorders, children: [para([label("నెం. / No.: "), run("____________")])] }),
+            new TableCell({ borders: noBorders, children: [para([label("తేది / Date: "), run(today)], { align: right })] }),
+          ],
+        }),
+        new TableRow({
+          children: [new TableCell({
+            borders: noBorders,
+            columnSpan: 2,
+            children: [para([label("శ్రీ / To: "), run("_______________________________________________")], { before: 80 })],
+          })],
+        }),
+      ],
+    });
+
+    const heading = (te, en, widthPct) => cell(
+      [run(te, { color: GREEN, bold: true }), new TextRun({ break: 1 }), run(en, { color: GREEN, bold: true })],
+      { widthPct, align: center },
+    );
+
+    const itemRows = [new TableRow({
+      tableHeader: true,
+      children: [
+        heading("క్ర.సం.", "Sl. No.", 10),
+        heading("వివరాలు", "Particulars", 52),
+        heading("సంఖ్య", "Qty.", 13),
+        heading("మొత్తం", "Total (sq ft)", 25),
+      ],
+    })];
 
     let serial = 0;
-    const sectionsHtml = state.sections.map((section) => {
-      const rowsHtml = section.rows.map((row) => `
-          <tr>
-            <td style="${td}text-align:center">${++serial}</td>
-            <td style="${td}">${escapeHtml(row.valuesText)}</td>
-            <td style="${td}text-align:center">${escapeHtml(row.qty)}</td>
-            <td style="${td}text-align:right">${fmt(rowTotal(row))}</td>
-          </tr>`).join("");
-      return `
-          <tr>
-            <td style="${td}background:#eef7f0;color:${GREEN};font-weight:bold" colspan="4">
-              ${escapeHtml(section.name)}
-            </td>
-          </tr>
-          ${rowsHtml}
-          <tr>
-            <td style="${td}text-align:right" colspan="3"><b>Section total</b></td>
-            <td style="${td}text-align:right"><b>${fmt(sectionTotal(section))}</b></td>
-          </tr>`;
-    }).join("");
+    state.sections.forEach((section) => {
+      itemRows.push(new TableRow({
+        children: [cell([run(section.name, { color: GREEN, bold: true })], { span: 4, shade: LIGHT_GREEN })],
+      }));
+      section.rows.forEach((row) => {
+        serial += 1;
+        itemRows.push(new TableRow({
+          children: [
+            cell([run(serial)], { align: center }),
+            cell([run(row.valuesText)]),
+            cell([run(row.qty)], { align: center }),
+            cell([run(fmt(rowTotal(row)))], { align: right }),
+          ],
+        }));
+      });
+      itemRows.push(new TableRow({
+        children: [
+          cell([run("Section total", { bold: true })], { span: 3, align: right }),
+          cell([run(fmt(sectionTotal(section)), { bold: true })], { align: right }),
+        ],
+      }));
+    });
 
-    return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
-      xmlns:w="urn:schemas-microsoft-com:office:word"
-      xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <title>${escapeHtml(BUSINESS.nameEn)} - Cut-List</title>
-        <style>
-          @page { size: A4; margin: 1.5cm; }
-          body { font-family: "Nirmala UI", Gautami, "Noto Sans Telugu", Calibri, Arial, sans-serif; font-size: 11pt; }
-          p { margin: 2px 0; }
-        </style>
-      </head>
-      <body>
-        <table style="border-collapse:collapse;width:100%;border:2px solid ${GREEN}">
-          <tr><td style="padding:10px 12px">
-            <p style="text-align:right;color:${GREEN};font-weight:bold">సెల్ / Cell: ${BUSINESS.phone}</p>
-            <p style="text-align:center;color:${RED};font-size:17pt;font-weight:bold">${BUSINESS.nameTe}</p>
-            <p style="text-align:center;color:${RED};font-size:13pt;font-weight:bold">${BUSINESS.nameEn}</p>
-            <p style="text-align:center;color:${GREEN};font-weight:bold">${BUSINESS.taglineTe} &nbsp;|&nbsp; ${BUSINESS.taglineEn}</p>
-            <p style="text-align:center;color:${GREEN}">${BUSINESS.addressTe}</p>
-            <p style="text-align:center;color:${GREEN}">${BUSINESS.addressEn}</p>
-            <p style="text-align:center;color:${RED};font-weight:bold">${BUSINESS.proprietorTe} &nbsp;|&nbsp; ${BUSINESS.proprietorEn}</p>
-          </td></tr>
-        </table>
+    itemRows.push(new TableRow({
+      children: [
+        cell([run("మొత్తం / Grand Total", { color: GREEN, sizePt: 12, bold: true })], { span: 3, align: right }),
+        cell([run(fmt(grandTotal()), { sizePt: 12, bold: true })], { align: right }),
+      ],
+    }));
 
-        <table style="width:100%;margin-top:10px;color:${GREEN};font-weight:bold">
-          <tr>
-            <td>నెం. / No.: ____________</td>
-            <td style="text-align:right">తేది / Date: <span style="color:#000">${escapeHtml(today)}</span></td>
-          </tr>
-          <tr>
-            <td colspan="2" style="padding-top:8px">శ్రీ / To: ______________________________________________</td>
-          </tr>
-        </table>
+    const items = new Table({ width: fullWidth, rows: itemRows });
 
-        <table style="border-collapse:collapse;width:100%;margin-top:10px">
-          <tr>
-            <th style="${th}width:10%">క్ర.సం.<br>Sl. No.</th>
-            <th style="${th}">వివరాలు<br>Particulars</th>
-            <th style="${th}width:12%">సంఖ్య<br>Qty.</th>
-            <th style="${th}width:20%">మొత్తం<br>Total (sq ft)</th>
-          </tr>
-          ${sectionsHtml}
-          <tr>
-            <td style="${td}text-align:right;color:${GREEN};font-size:12pt" colspan="3">
-              <b>మొత్తం / Grand Total</b>
-            </td>
-            <td style="${td}text-align:right;font-size:12pt"><b>${fmt(grandTotal())}</b></td>
-          </tr>
-        </table>
-
-        <p style="text-align:right;color:${RED};margin-top:50px">______________________</p>
-        <p style="text-align:right;color:${RED};font-style:italic">సంతకం / Signature</p>
-      </body></html>`;
+    return new Document({
+      creator: BUSINESS.nameEn,
+      title: `${BUSINESS.nameEn} - Cut-List`,
+      styles: { default: { document: { run: { font: FONT, size: 22 } } } },
+      sections: [{
+        properties: {
+          page: {
+            size: { width: 11906, height: 16838 }, // A4
+            margin: { top: 850, bottom: 850, left: 850, right: 850 },
+          },
+        },
+        children: [
+          header,
+          para([], { after: 120 }),
+          billFields,
+          para([], { after: 120 }),
+          items,
+          para([run("______________________", { color: RED })], { align: right, before: 900, after: 0 }),
+          para([run("సంతకం / Signature", { color: RED, italics: true })], { align: right }),
+        ],
+      }],
+    });
   }
 
-  downloadDocBtn.addEventListener("click", () => {
+  downloadDocBtn.addEventListener("click", async () => {
     if (state.sections.length === 0) {
       showError("Nothing to download yet. Add a section or extract a photo first.");
       return;
     }
+    if (!window.docx) {
+      showError("The Word export couldn't load. Please refresh the page and try again.");
+      return;
+    }
     clearStatus();
-    const blob = new Blob(["\ufeff", buildDocHtml()], { type: "application/msword" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `wood-cut-list-${new Date().toISOString().slice(0, 10)}.doc`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
+    try {
+      const blob = await window.docx.Packer.toBlob(buildDocx());
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `wood-cut-list-${new Date().toISOString().slice(0, 10)}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error(err);
+      showError("Couldn't create the Word document. Please try again.");
+    }
   });
 
   render();
