@@ -316,42 +316,106 @@
     })[c]);
   }
 
+  // Business details printed on the shop's bill book, shown in Telugu and
+  // English at the top of every exported document.
+  const BUSINESS = {
+    nameTe: "శ్రీ విరాట్ వుడెన్ ఫర్నీచర్, బిల్డింగ్ వర్క్స్ & అల్యూమినియం వర్క్స్",
+    nameEn: "Sri Virat Wooden Furniture, Building Works & Aluminium Works",
+    taglineTe: "వృత్తి నైపుణ్యత గల వారిచే చేయబడును",
+    taglineEn: "Work done by skilled professionals",
+    addressTe: "మంచిర్యాల చౌరస్తా, మసీదు ఎదురుగా, కరీంనగర్ - 505 001.",
+    addressEn: "Mancherial Chowrasta, Opp. Masjid, Karimnagar - 505 001.",
+    proprietorTe: "ప్రొ॥ యన్. శ్రీనివాస్",
+    proprietorEn: "Prop. N. Srinivas",
+    phone: "9849523572",
+  };
+
+  const GREEN = "#1a7f3c";
+  const RED = "#c8321e";
+
   // Word opens HTML saved with a .doc extension and the msword MIME type, so
   // the cut-list can be exported without a document-generation library.
   function buildDocHtml() {
-    const cell = "border:1px solid #999;padding:4px 8px;";
+    const border = `border:1px solid ${GREEN};`;
+    const th = `${border}padding:5px 6px;color:${GREEN};font-weight:bold;text-align:center;`;
+    const td = `${border}padding:5px 6px;`;
+    const today = new Date().toLocaleDateString("en-IN");
+
+    let serial = 0;
     const sectionsHtml = state.sections.map((section) => {
       const rowsHtml = section.rows.map((row) => `
-        <tr>
-          <td style="${cell}">${escapeHtml(row.qty)}</td>
-          <td style="${cell}">${escapeHtml(row.valuesText)}</td>
-          <td style="${cell}text-align:right">${fmt(rowTotal(row))}</td>
-        </tr>`).join("");
-      return `
-        <h2>${escapeHtml(section.name)}</h2>
-        <table style="border-collapse:collapse;width:100%">
           <tr>
-            <th style="${cell}text-align:left">Qty</th>
-            <th style="${cell}text-align:left">Dimensions</th>
-            <th style="${cell}text-align:right">Total (sq ft)</th>
+            <td style="${td}text-align:center">${++serial}</td>
+            <td style="${td}">${escapeHtml(row.valuesText)}</td>
+            <td style="${td}text-align:center">${escapeHtml(row.qty)}</td>
+            <td style="${td}text-align:right">${fmt(rowTotal(row))}</td>
+          </tr>`).join("");
+      return `
+          <tr>
+            <td style="${td}background:#eef7f0;color:${GREEN};font-weight:bold" colspan="4">
+              ${escapeHtml(section.name)}
+            </td>
           </tr>
           ${rowsHtml}
           <tr>
-            <td style="${cell}" colspan="2"><b>Section total</b></td>
-            <td style="${cell}text-align:right"><b>${fmt(sectionTotal(section))}</b></td>
-          </tr>
-        </table>`;
+            <td style="${td}text-align:right" colspan="3"><b>Section total</b></td>
+            <td style="${td}text-align:right"><b>${fmt(sectionTotal(section))}</b></td>
+          </tr>`;
     }).join("");
 
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
       xmlns:w="urn:schemas-microsoft-com:office:word"
       xmlns="http://www.w3.org/TR/REC-html40">
-      <head><meta charset="utf-8"><title>Wood Cut-List</title></head>
-      <body style="font-family:Calibri,Arial,sans-serif">
-        <h1>Wood Cut-List</h1>
-        <p>Generated ${escapeHtml(new Date().toLocaleString())}</p>
-        ${sectionsHtml}
-        <h2>Grand total: ${fmt(grandTotal())} sq ft</h2>
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(BUSINESS.nameEn)} - Cut-List</title>
+        <style>
+          @page { size: A4; margin: 1.5cm; }
+          body { font-family: "Nirmala UI", Gautami, "Noto Sans Telugu", Calibri, Arial, sans-serif; font-size: 11pt; }
+          p { margin: 2px 0; }
+        </style>
+      </head>
+      <body>
+        <table style="border-collapse:collapse;width:100%;border:2px solid ${GREEN}">
+          <tr><td style="padding:10px 12px">
+            <p style="text-align:right;color:${GREEN};font-weight:bold">సెల్ / Cell: ${BUSINESS.phone}</p>
+            <p style="text-align:center;color:${RED};font-size:17pt;font-weight:bold">${BUSINESS.nameTe}</p>
+            <p style="text-align:center;color:${RED};font-size:13pt;font-weight:bold">${BUSINESS.nameEn}</p>
+            <p style="text-align:center;color:${GREEN};font-weight:bold">${BUSINESS.taglineTe} &nbsp;|&nbsp; ${BUSINESS.taglineEn}</p>
+            <p style="text-align:center;color:${GREEN}">${BUSINESS.addressTe}</p>
+            <p style="text-align:center;color:${GREEN}">${BUSINESS.addressEn}</p>
+            <p style="text-align:center;color:${RED};font-weight:bold">${BUSINESS.proprietorTe} &nbsp;|&nbsp; ${BUSINESS.proprietorEn}</p>
+          </td></tr>
+        </table>
+
+        <table style="width:100%;margin-top:10px;color:${GREEN};font-weight:bold">
+          <tr>
+            <td>నెం. / No.: ____________</td>
+            <td style="text-align:right">తేది / Date: <span style="color:#000">${escapeHtml(today)}</span></td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding-top:8px">శ్రీ / To: ______________________________________________</td>
+          </tr>
+        </table>
+
+        <table style="border-collapse:collapse;width:100%;margin-top:10px">
+          <tr>
+            <th style="${th}width:10%">క్ర.సం.<br>Sl. No.</th>
+            <th style="${th}">వివరాలు<br>Particulars</th>
+            <th style="${th}width:12%">సంఖ్య<br>Qty.</th>
+            <th style="${th}width:20%">మొత్తం<br>Total (sq ft)</th>
+          </tr>
+          ${sectionsHtml}
+          <tr>
+            <td style="${td}text-align:right;color:${GREEN};font-size:12pt" colspan="3">
+              <b>మొత్తం / Grand Total</b>
+            </td>
+            <td style="${td}text-align:right;font-size:12pt"><b>${fmt(grandTotal())}</b></td>
+          </tr>
+        </table>
+
+        <p style="text-align:right;color:${RED};margin-top:50px">______________________</p>
+        <p style="text-align:right;color:${RED};font-style:italic">సంతకం / Signature</p>
       </body></html>`;
   }
 
