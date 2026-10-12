@@ -12,6 +12,12 @@
       "No measurement rows were found in this photo. Try a clearer, closer, or better-lit photo.",
     rate_limited: "The service is busy right now. Please try again in a moment.",
     upstream_error: "Something went wrong talking to the extraction service.",
+    quota_exceeded:
+      "The AI service's usage limit has been reached. Wait a minute and try again; if it keeps happening, today's quota is used up.",
+    invalid_api_key: "The AI service rejected the API key. Check the API key in the server settings.",
+    model_not_found: "The AI model configured on the server is no longer available.",
+    provider_timeout: "The AI service took too long to respond. Please try again.",
+    server_misconfigured: "The server is missing its AI API key. Add it in the server settings.",
   };
 
   /** @type {{sections: Array<{name: string, rows: Array<{qty: number, valuesText: string}>}>}} */
@@ -102,7 +108,8 @@
 
       if (!res.ok) {
         const code = data && data.error && data.error.code;
-        showError(ERROR_MESSAGES[code] || "Something went wrong. Please try again.");
+        const serverMessage = data && data.error && data.error.message;
+        showError(ERROR_MESSAGES[code] || serverMessage || "Something went wrong. Please try again.");
         return;
       }
 

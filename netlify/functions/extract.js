@@ -1,5 +1,10 @@
 const Busboy = require("busboy");
-const { ACCEPTED_MIME_TYPES, hasAnyRows, extractFromImage } = require("../../lib/extraction");
+const {
+  ACCEPTED_MIME_TYPES,
+  PROVIDER_FAILURES,
+  hasAnyRows,
+  extractFromImage,
+} = require("../../lib/extraction");
 
 // Netlify Functions run behind API Gateway, which caps request bodies at 6MB.
 // A base64-encoded upload is ~33% larger than the original file, so cap the
@@ -107,7 +112,8 @@ exports.handler = async (event) => {
   try {
     result = await extractFromImage(base64Data, mimetype);
   } catch (err) {
-    console.error("Extraction chain failed:", err);
+    // Per-provider failures are already logged in lib/extraction.js.
+    console.error(err.code ? `[extract] All providers failed (${err.code}).` : err);
     if (err.code === "no_provider_configured") {
       return errorResponse(
         500,
@@ -122,11 +128,9 @@ exports.handler = async (event) => {
         "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
       );
     }
-    return errorResponse(
-      502,
-      "upstream_error",
-      "Something went wrong talking to the extraction service."
-    );
+    const failure = PROVIDER_FAILURES[err.code] || PROVIDER_FAILURES.upstream_error;
+    const code = PROVIDER_FAILURES[err.code] ? err.code : "upstream_error";
+    return errorResponse(failure.status, code, failure.message);
   }
 
   if (!hasAnyRows(result)) {
