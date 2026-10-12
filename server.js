@@ -6,6 +6,7 @@ const multer = require("multer");
 const {
   MAX_UPLOAD_BYTES,
   ACCEPTED_MIME_TYPES,
+  PROVIDER_FAILURES,
   hasAnyRows,
   extractFromImage,
 } = require("./lib/extraction");
@@ -53,7 +54,8 @@ app.post("/api/extract", upload.single("image"), async (req, res) => {
   try {
     result = await extractFromImage(base64Data, mediaType);
   } catch (err) {
-    console.error("Extraction chain failed:", err);
+    // Per-provider failures are already logged in lib/extraction.js.
+    console.error(err.code ? `[extract] All providers failed (${err.code}).` : err);
     if (err.code === "no_provider_configured") {
       return sendError(
         res,
@@ -70,12 +72,9 @@ app.post("/api/extract", upload.single("image"), async (req, res) => {
         "Couldn't read this photo clearly. Try a clearer, closer, or better-lit photo."
       );
     }
-    return sendError(
-      res,
-      502,
-      "upstream_error",
-      "Something went wrong talking to the extraction service."
-    );
+    const failure = PROVIDER_FAILURES[err.code] || PROVIDER_FAILURES.upstream_error;
+    const code = PROVIDER_FAILURES[err.code] ? err.code : "upstream_error";
+    return sendError(res, failure.status, code, failure.message);
   }
 
   if (!hasAnyRows(result)) {
