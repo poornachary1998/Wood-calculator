@@ -2,6 +2,7 @@ const Busboy = require("busboy");
 const {
   ACCEPTED_MIME_TYPES,
   PROVIDER_FAILURES,
+  hasAnyProviderKey,
   hasAnyRows,
   extractFromImage,
 } = require("../../lib/extraction");
@@ -66,7 +67,7 @@ exports.handler = async (event) => {
     return errorResponse(405, "method_not_allowed", "Only POST is supported.");
   }
 
-  if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+  if (!hasAnyProviderKey()) {
     console.error("No extraction provider is configured.");
     return errorResponse(
       500,
