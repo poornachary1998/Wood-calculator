@@ -7,15 +7,17 @@ const {
   MAX_UPLOAD_BYTES,
   ACCEPTED_MIME_TYPES,
   PROVIDER_FAILURES,
+  PROVIDER_ENV_KEYS,
+  hasAnyProviderKey,
   hasAnyRows,
   extractFromImage,
 } = require("./lib/extraction");
 
 const PORT = process.env.PORT || 3000;
 
-if (!process.env.GEMINI_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+if (!hasAnyProviderKey()) {
   console.error(
-    "No extraction provider is configured. Copy .env.example to .env and set at least one of GEMINI_API_KEY or ANTHROPIC_API_KEY."
+    `No extraction provider is configured. Copy .env.example to .env and set at least one of ${PROVIDER_ENV_KEYS.join(", ")}.`
   );
   process.exit(1);
 }

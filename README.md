@@ -12,3 +12,11 @@ npm run dev
 ```
 
 `npm start` runs the server without auto-reload.
+
+### Backup Gemini key
+
+Set `GEMINI_API_KEY_BACKUP` (in `.env`, or in Netlify under Site configuration →
+Environment variables) to a second Gemini key. When the main key's quota runs
+out or the key stops working, extraction automatically retries with the backup
+key before falling back to Claude. Create the backup key in a different Google
+Cloud project or Google account — keys in the same project share one quota.
